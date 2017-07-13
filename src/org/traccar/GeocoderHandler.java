@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 - 2016 Anton Tananaev (anton@traccar.org)
+ * Copyright 2012 - 2017 Anton Tananaev (anton@traccar.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ public class GeocoderHandler implements ChannelUpstreamHandler {
     private final Geocoder geocoder;
     private final boolean processInvalidPositions;
     private final AddressFormat addressFormat;
+    private final int geocoderReuseDistance;
 
     public GeocoderHandler(Geocoder geocoder, boolean processInvalidPositions) {
         this.geocoder = geocoder;
@@ -41,6 +42,8 @@ public class GeocoderHandler implements ChannelUpstreamHandler {
         } else {
             addressFormat = new AddressFormat();
         }
+
+        geocoderReuseDistance = Context.getConfig().getInteger("geocoder.reuseDistance", 0);
     }
 
     @Override
@@ -55,6 +58,18 @@ public class GeocoderHandler implements ChannelUpstreamHandler {
         if (message instanceof Position) {
             final Position position = (Position) message;
             if (processInvalidPositions || position.getValid()) {
+                if (geocoderReuseDistance != 0) {
+                    Position lastPosition = Context.getIdentityManager().getLastPosition(position.getDeviceId());
+                    if (lastPosition != null && lastPosition.getAddress() != null
+                            && position.getDouble(Position.KEY_DISTANCE) <= geocoderReuseDistance) {
+                        position.setAddress(lastPosition.getAddress());
+                        Channels.fireMessageReceived(ctx, position, event.getRemoteAddress());
+                        return;
+                    }
+                }
+
+                Context.getStatisticsManager().registerGeocoderRequest();
+
                 geocoder.getAddress(addressFormat, position.getLatitude(), position.getLongitude(),
                         new Geocoder.ReverseGeocoderCallback() {
                     @Override

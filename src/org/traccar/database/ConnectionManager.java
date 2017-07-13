@@ -48,7 +48,7 @@ public class ConnectionManager {
 
     public ConnectionManager() {
         deviceTimeout = Context.getConfig().getLong("status.timeout", DEFAULT_TIMEOUT) * 1000;
-        enableStatusEvents = Context.getConfig().getBoolean("event.statusHandler");
+        enableStatusEvents = Context.getConfig().getBoolean("event.enable");
     }
 
     public void addActiveDevice(long deviceId, Protocol protocol, Channel channel, SocketAddress remoteAddress) {
@@ -75,7 +75,10 @@ public class ConnectionManager {
             return;
         }
 
-        if (enableStatusEvents && !status.equals(device.getStatus())) {
+        String oldStatus = device.getStatus();
+        device.setStatus(status);
+
+        if (enableStatusEvents && !status.equals(oldStatus)) {
             String eventType;
             switch (status) {
                 case Device.STATUS_ONLINE:
@@ -93,7 +96,6 @@ public class ConnectionManager {
                 Context.getNotificationManager().updateEvent(event, null);
             }
         }
-        device.setStatus(status);
 
         Timeout timeout = timeouts.remove(deviceId);
         if (timeout != null) {

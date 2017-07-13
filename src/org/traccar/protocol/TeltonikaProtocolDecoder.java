@@ -18,7 +18,6 @@ package org.traccar.protocol;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.socket.DatagramChannel;
 import org.traccar.BaseProtocolDecoder;
 import org.traccar.DeviceSession;
 import org.traccar.helper.BitUtil;
@@ -35,8 +34,11 @@ import java.util.List;
 
 public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
 
-    public TeltonikaProtocolDecoder(TeltonikaProtocol protocol) {
+    private boolean connectionless;
+
+    public TeltonikaProtocolDecoder(TeltonikaProtocol protocol, boolean connectionless) {
         super(protocol);
+        this.connectionless = connectionless;
     }
 
     private DeviceSession parseIdentification(Channel channel, SocketAddress remoteAddress, ChannelBuffer buf) {
@@ -246,10 +248,10 @@ public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
     }
 
     private List<Position> parseData(
-            Channel channel, SocketAddress remoteAddress, ChannelBuffer buf, int packetId, String... imei) {
+            Channel channel, SocketAddress remoteAddress, ChannelBuffer buf, int locationPacketId, String... imei) {
         List<Position> positions = new LinkedList<>();
 
-        if (!(channel instanceof DatagramChannel)) {
+        if (!connectionless) {
             buf.readUnsignedInt(); // data length
         }
 
@@ -278,14 +280,16 @@ public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
         }
 
         if (channel != null) {
-            if (channel instanceof DatagramChannel) {
-                ChannelBuffer response = ChannelBuffers.directBuffer(5);
-                response.writeShort(3);
-                response.writeShort(packetId);
-                response.writeByte(0x02);
+            if (connectionless) {
+                ChannelBuffer response = ChannelBuffers.dynamicBuffer();
+                response.writeShort(5);
+                response.writeShort(0);
+                response.writeByte(0x01);
+                response.writeByte(locationPacketId);
+                response.writeByte(count);
                 channel.write(response, remoteAddress);
             } else {
-                ChannelBuffer response = ChannelBuffers.directBuffer(4);
+                ChannelBuffer response = ChannelBuffers.dynamicBuffer();
                 response.writeInt(count);
                 channel.write(response);
             }
@@ -299,7 +303,7 @@ public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
 
         ChannelBuffer buf = (ChannelBuffer) msg;
 
-        if (channel instanceof DatagramChannel) {
+        if (connectionless) {
             return decodeUdp(channel, remoteAddress, buf);
         } else {
             return decodeTcp(channel, remoteAddress, buf);
@@ -320,12 +324,13 @@ public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
 
     private Object decodeUdp(Channel channel, SocketAddress remoteAddress, ChannelBuffer buf) throws Exception {
 
-        buf.skipBytes(2);
-        int packetId = buf.readUnsignedShort();
-        buf.skipBytes(2);
+        buf.readUnsignedShort(); // length
+        buf.readUnsignedShort(); // packet id
+        buf.readUnsignedByte(); // packet type
+        int locationPacketId = buf.readUnsignedByte();
         String imei = buf.readBytes(buf.readUnsignedShort()).toString(StandardCharsets.US_ASCII);
 
-        return parseData(channel, remoteAddress, buf, packetId, imei);
+        return parseData(channel, remoteAddress, buf, locationPacketId, imei);
 
     }
 

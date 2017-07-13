@@ -131,7 +131,6 @@ public class DeviceManager implements IdentityManager {
                             device.setGeofenceIds(geofenceManager.getCurrentDeviceGeofences(lastPosition));
                         }
                     }
-                    device.setStatus(Device.STATUS_OFFLINE);
                 }
             }
             for (Iterator<Long> iterator = devicesById.keySet().iterator(); iterator.hasNext();) {
@@ -191,7 +190,7 @@ public class DeviceManager implements IdentityManager {
     }
 
     public Collection<Device> getManagedDevices(long userId) throws SQLException {
-        Collection<Device> devices = new ArrayList<>();
+        Collection<Device> devices = new HashSet<>();
         devices.addAll(getDevices(userId));
         for (long managedUserId : Context.getPermissionsManager().getUserPermissions(userId)) {
             devices.addAll(getDevices(managedUserId));

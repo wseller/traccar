@@ -90,10 +90,10 @@ public class Gps103ProtocolDecoder extends BaseProtocolDecoder {
             .number("(d+),")                     // odometer
             .number("(d+.d+)?,")                 // fuel instant
             .number("(d+.d+)?,")                 // fuel average
-            .number("(d+),")                     // hours
+            .number("(d+)?,")                    // hours
             .number("(d+),")                     // speed
-            .number("d+.?d*%,")                  // power load
-            .number("(d+),")                     // temperature
+            .number("(d+.?d*%),")                // power load
+            .number("(?:([-+]?d+)|[-+]?),")      // temperature
             .number("(d+.?d*%),")                // throttle
             .number("(d+),")                     // rpm
             .number("(d+.d+),")                  // battery
@@ -189,7 +189,7 @@ public class Gps103ProtocolDecoder extends BaseProtocolDecoder {
             getLastLocation(position, null);
 
             position.setNetwork(new Network(
-                    CellTower.fromLacCid(parser.nextInt(16), parser.nextInt(16))));
+                    CellTower.fromLacCid(parser.nextHexInt(0), parser.nextHexInt(0))));
 
             return position;
 
@@ -206,15 +206,16 @@ public class Gps103ProtocolDecoder extends BaseProtocolDecoder {
 
             getLastLocation(position, parser.nextDateTime());
 
-            position.set(Position.KEY_ODOMETER, parser.nextInt());
-            parser.next(); // instant fuel consumption
-            position.set(Position.KEY_FUEL_CONSUMPTION, parser.next());
-            position.set(Position.KEY_HOURS, parser.next());
-            position.set(Position.KEY_OBD_SPEED, parser.next());
-            position.set(Position.PREFIX_TEMP + 1, parser.next());
+            position.set(Position.KEY_ODOMETER, parser.nextInt(0));
+            parser.nextDouble(0); // instant fuel consumption
+            position.set(Position.KEY_FUEL_CONSUMPTION, parser.nextDouble(0));
+            position.set(Position.KEY_HOURS, parser.nextInt());
+            position.set(Position.KEY_OBD_SPEED, parser.nextInt(0));
+            position.set(Position.KEY_ENGINE_LOAD, parser.next());
+            position.set(Position.KEY_COOLANT_TEMP, parser.nextInt());
             position.set(Position.KEY_THROTTLE, parser.next());
-            position.set(Position.KEY_RPM, parser.next());
-            position.set(Position.KEY_BATTERY, parser.next());
+            position.set(Position.KEY_RPM, parser.nextInt(0));
+            position.set(Position.KEY_BATTERY, parser.nextDouble(0));
             position.set(Position.KEY_DTCS, parser.next().replace(',', ' ').trim());
 
             return position;
@@ -250,10 +251,10 @@ public class Gps103ProtocolDecoder extends BaseProtocolDecoder {
         }
 
         DateBuilder dateBuilder = new DateBuilder()
-                .setDate(parser.nextInt(), parser.nextInt(), parser.nextInt());
+                .setDate(parser.nextInt(0), parser.nextInt(0), parser.nextInt(0));
 
-        int localHours = parser.nextInt();
-        int localMinutes = parser.nextInt();
+        int localHours = parser.nextInt(0);
+        int localMinutes = parser.nextInt(0);
 
         String rfid = parser.next();
         if (alarm.equals("rfid")) {
@@ -263,7 +264,7 @@ public class Gps103ProtocolDecoder extends BaseProtocolDecoder {
         String utcHours = parser.next();
         String utcMinutes = parser.next();
 
-        dateBuilder.setTime(localHours, localMinutes, parser.nextInt());
+        dateBuilder.setTime(localHours, localMinutes, parser.nextInt(0));
 
         // Timezone calculation
         if (utcHours != null && utcMinutes != null) {
@@ -281,9 +282,9 @@ public class Gps103ProtocolDecoder extends BaseProtocolDecoder {
         position.setValid(parser.next().equals("A"));
         position.setLatitude(parser.nextCoordinate(Parser.CoordinateFormat.HEM_DEG_MIN_HEM));
         position.setLongitude(parser.nextCoordinate(Parser.CoordinateFormat.HEM_DEG_MIN_HEM));
-        position.setSpeed(parser.nextDouble());
-        position.setCourse(parser.nextDouble());
-        position.setAltitude(parser.nextDouble());
+        position.setSpeed(parser.nextDouble(0));
+        position.setCourse(parser.nextDouble(0));
+        position.setAltitude(parser.nextDouble(0));
 
         for (int i = 1; i <= 5; i++) {
             position.set(Position.PREFIX_IO + i, parser.next());

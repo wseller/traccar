@@ -27,10 +27,12 @@ import org.apache.velocity.app.VelocityEngine;
 import org.eclipse.jetty.util.URIUtil;
 import org.traccar.database.AliasesManager;
 import org.traccar.database.CalendarManager;
+import org.traccar.database.AttributesManager;
 import org.traccar.database.ConnectionManager;
 import org.traccar.database.DataManager;
 import org.traccar.database.DeviceManager;
 import org.traccar.database.IdentityManager;
+import org.traccar.database.MediaManager;
 import org.traccar.database.NotificationManager;
 import org.traccar.database.PermissionsManager;
 import org.traccar.database.GeofenceManager;
@@ -44,6 +46,7 @@ import org.traccar.geocoder.MapQuestGeocoder;
 import org.traccar.geocoder.NominatimGeocoder;
 import org.traccar.geocoder.OpenCageGeocoder;
 import org.traccar.geocoder.Geocoder;
+import org.traccar.geolocation.UnwiredGeolocationProvider;
 import org.traccar.helper.Log;
 import org.traccar.geolocation.GoogleGeolocationProvider;
 import org.traccar.geolocation.GeolocationProvider;
@@ -86,6 +89,12 @@ public final class Context {
 
     public static DataManager getDataManager() {
         return dataManager;
+    }
+
+    private static MediaManager mediaManager;
+
+    public static MediaManager getMediaManager() {
+        return mediaManager;
     }
 
     private static DeviceManager deviceManager;
@@ -172,6 +181,12 @@ public final class Context {
         return aliasesManager;
     }
 
+    private static AttributesManager attributesManager;
+
+    public static AttributesManager getAttributesManager() {
+        return attributesManager;
+    }
+
     private static StatisticsManager statisticsManager;
 
     public static StatisticsManager getStatisticsManager() {
@@ -206,6 +221,10 @@ public final class Context {
             dataManager = new DataManager(config);
         }
 
+        if (config.hasKey("media.path")) {
+            mediaManager = new MediaManager(config);
+        }
+
         if (dataManager != null) {
             deviceManager = new DeviceManager(dataManager);
         }
@@ -221,7 +240,7 @@ public final class Context {
             int cacheSize = config.getInteger("geocoder.cacheSize");
             switch (type) {
                 case "nominatim":
-                    geocoder = new NominatimGeocoder(url, key, cacheSize);
+                    geocoder = new NominatimGeocoder(url, key, language, cacheSize);
                     break;
                 case "gisgraphy":
                     geocoder = new GisgraphyGeocoder(url, cacheSize);
@@ -249,6 +268,7 @@ public final class Context {
 
         if (config.getBoolean("geolocation.enable")) {
             String type = config.getString("geolocation.type", "mozilla");
+            String url = config.getString("geolocation.url");
             String key = config.getString("geolocation.key");
 
             switch (type) {
@@ -258,12 +278,11 @@ public final class Context {
                 case "opencellid":
                     geolocationProvider = new OpenCellIdGeolocationProvider(key);
                     break;
+                case "unwired":
+                    geolocationProvider = new UnwiredGeolocationProvider(url, key);
+                    break;
                 default:
-                    if (key != null) {
-                        geolocationProvider = new MozillaGeolocationProvider(key);
-                    } else {
-                        geolocationProvider = new MozillaGeolocationProvider();
-                    }
+                    geolocationProvider = new MozillaGeolocationProvider(key);
                     break;
             }
         }
@@ -276,12 +295,9 @@ public final class Context {
 
         connectionManager = new ConnectionManager();
 
-        if (config.getBoolean("event.geofenceHandler")) {
+        if (config.getBoolean("event.enable")) {
             geofenceManager = new GeofenceManager(dataManager);
             calendarManager = new CalendarManager(dataManager);
-        }
-
-        if (config.getBoolean("event.enable")) {
             notificationManager = new NotificationManager(dataManager);
             Properties velocityProperties = new Properties();
             velocityProperties.setProperty("file.resource.loader.path",
@@ -311,6 +327,8 @@ public final class Context {
         }
 
         aliasesManager = new AliasesManager(dataManager);
+
+        attributesManager = new AttributesManager(dataManager);
 
         statisticsManager = new StatisticsManager();
 

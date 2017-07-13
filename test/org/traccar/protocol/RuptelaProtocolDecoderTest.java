@@ -10,8 +10,14 @@ public class RuptelaProtocolDecoderTest extends ProtocolTest {
 
         RuptelaProtocolDecoder decoder = new RuptelaProtocolDecoder(new RuptelaProtocol());
 
+        verifyNull(decoder, binary(
+                "002e000315bc70d3e2ff0f4f42443130302e30312e30382e30300000c2b30ea77e430000601b000001f40000003c00144aa0"));
+
         verifyAttributes(decoder, binary(
                 "0011000315A07F440B1D07534554494f20636f6e66696775726174696f6e2064617461206f6b341C"));
+
+        verifyAttributes(decoder, binary(
+                "0044000313612d76c5cb0744494e313d312c44494e323d302c44494e333d302c44494e343d302c444f5554313d312c444f5554323d312c41494e313d31372c41494e323d3236ac80"));
 
         verifyPositions(decoder, binary(
                 "000B00000B1A29F64B1A0902FF4E9CAF2C07D608F11A1480BA015030303130FF4E9CAF2C07D608F11A1480BA0250303031318C91"));
